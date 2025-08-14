@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LANGAROO! — 80s Neon Overload</title>
+  <!-- 80s-ish fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --neon-pink: #ff3fd1;
+      --neon-blue: #27e5ff;
+      --neon-yellow: #ffe54d;
+      --neon-green: #6cff7d;
+      --deep-violet: #130016;
+      --grid-purple: #7d2bff;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: radial-gradient(1200px 800px at 50% 20%, #2a0040 0%, #0a0012 55%, #000 100%);
+      color: white;
+      font-family: 'Orbitron', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    /* Starfield canvas and FX layers */
+    canvas#stars, canvas#confetti { position: fixed; inset: 0; z-index: 0; }
+
+    .scanlines { position: fixed; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: overlay; }
+    .scanlines::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.05) 0px,
+        rgba(255,255,255,0.05) 1px,
+        transparent 2px,
+        transparent 3px
+      );
+      animation: vhs 3s linear infinite;
+    }
+    .vignette { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+    .vignette::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(1200px 600px at 50% 50%, transparent 30%, rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.8) 100%);
+    }
+
+    @keyframes vhs { 0% {transform: translateY(0);} 100% { transform: translateY(2px);} }
+
+    /* Grid floor */
+    .floor {
+      position: fixed; left: 0; right: 0; bottom: -10vh; height: 60vh; z-index: 1;
+      background:
+        linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px) 0 0 / 60px 100%,
+        linear-gradient(to top, rgba(255,255,255,0.08) 1px, transparent 1px) 0 0 / 100% 60px,
+        radial-gradient(1000px 400px at 50% -10%, rgba(255,0,128,0.35), transparent 60%);
+      transform: perspective(800px) rotateX(65deg) translateZ(0);
+      box-shadow: 0 -60px 120px rgba(255,0,170,0.25) inset;
+      filter: drop-shadow(0 -20px 40px rgba(39,229,255,0.25));
+      animation: gridglow 3.5s ease-in-out infinite;
+    }
+    @keyframes gridglow {
+      0%, 100% { filter: drop-shadow(0 -20px 50px rgba(39,229,255,0.45)); }
+      50% { filter: drop-shadow(0 -20px 80px rgba(255,63,209,0.55)); }
+    }
+
+    /* Neon frame */
+    .frame {
+      position: absolute; inset: 3vmin; z-index: 2;
+      border: 6px solid transparent;
+      border-image: linear-gradient(45deg, var(--neon-pink), var(--neon-blue), var(--neon-yellow), var(--neon-green), var(--neon-pink)) 1;
+      border-radius: 24px;
+      box-shadow:
+        0 0 30px var(--neon-blue),
+        0 0 60px var(--neon-pink) inset;
+      animation: borderflow 8s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes borderflow {
+      0% { filter: hue-rotate(0deg) saturate(1.2); }
+      100% { filter: hue-rotate(360deg) saturate(1.2); }
+    }
+
+    /* Content */
+    .wrap {
+      position: relative; z-index: 5; height: 100vh; display: grid;
+      place-items: center; text-align: center; padding: 6vmin;
+    }
+
+    .badge {
+      font-family: 'Press Start 2P', monospace; font-size: clamp(10px, 1.6vmin, 16px);
+      letter-spacing: 3px; color: #fff; opacity: 0.9; margin-bottom: 1rem;
+      text-shadow: 0 0 8px rgba(255,255,255,0.45);
+      animation: flicker 2.2s infinite steps(1);
+      user-select: none;
+    }
+    @keyframes flicker {
+      0%, 2%, 8%, 10%, 100% { opacity: 1; }
+      3%, 9% { opacity: 0.6; }
+      5% { opacity: 0.2; }
+    }
+
+    .title {
+      font-size: clamp(24px, 8vmin, 140px);
+      line-height: 0.95;
+      margin: 0 0 0.4rem 0;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      background: linear-gradient(180deg, #fff 10%, #ddd 40%, #bbb 60%, #eee 80%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      position: relative;
+      filter: drop-shadow(0 0 10px rgba(255,63,209,0.75)) drop-shadow(0 0 30px rgba(39,229,255,0.65));
+    }
+    .title .outline {
+      position: absolute; inset: 0; color: transparent;
+      -webkit-text-stroke: 8px rgba(255,63,209,0.5);
+      text-stroke: 8px rgba(255,63,209,0.5);
+      filter: blur(2px);
+      z-index: -1;
+    }
+    .title .glow {
+      position: absolute; inset: 0; color: transparent;
+      -webkit-text-stroke: 2px rgba(39,229,255,0.9);
+      text-stroke: 2px rgba(39,229,255,0.9);
+      filter: blur(1px);
+      z-index: -2;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+    .subtitle {
+      font-size: clamp(14px, 2.2vmin, 28px);
+      color: #c9f5ff;
+      text-shadow: 0 0 8px var(--neon-blue), 0 0 28px var(--neon-pink);
+      margin-bottom: 1.4rem;
+      transform: skewX(-6deg);
+      animation: wobble 6s ease-in-out infinite;
+    }
+    @keyframes wobble { 0%,100%{ transform: skewX(-6deg) translateY(0);} 50%{ transform: skewX(-2deg) translateY(4px);} }
+
+    /* Shiny chrome LANGAROO */
+    .chrome {
+      font-size: clamp(22px, 5.6vmin, 100px);
+      font-weight: 900; margin-top: 0.3rem; letter-spacing: 0.02em; position: relative;
+      background: linear-gradient(90deg,#b6c6ff,#ffffff 20%,#c3d0ff 40%,#93a4ff 60%,#ffffff 80%,#b6c6ff);
+      -webkit-background-clip: text; background-clip: text; color: transparent; text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(255,255,255,0.45), 0 8px 30px rgba(39,229,255,0.35);
+      animation: shine 5s linear infinite;
+    }
+    @keyframes shine { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+    .chrome::after {
+      content: attr(data-reflect);
+      position: absolute; left: 0; right: 0; top: 100%; transform: scaleY(-1); opacity: 0.25;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      background: inherit; filter: blur(2px);
+      mask-image: linear-gradient(to bottom, rgba(255,255,255,0.7), transparent);
+    }
+
+    /* Buttons and knobs */
+    .controls { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 1rem; }
+    .btn {
+      position: relative; isolation: isolate;
+      padding: 14px 22px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.35);
+      color: #111; font-weight: 800; letter-spacing: 0.08em; cursor: pointer; text-transform: uppercase;
+      background: linear-gradient(180deg, #fff 0%, #e4faff 60%, #c0f4ff 100%);
+      box-shadow: 0 0 16px rgba(39,229,255,0.6), 0 10px 24px rgba(0,0,0,0.35);
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+    }
+    .btn::before {
+      content: ""; position: absolute; inset: -2px; z-index: -1; border-radius: 14px;
+      background: conic-gradient(from 0deg, var(--neon-pink), var(--neon-blue), var(--neon-yellow), var(--neon-green), var(--neon-pink));
+      filter: blur(12px); opacity: 0.75; animation: spin 6s linear infinite;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(1px) scale(0.98); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Marquee */
+    .marquee {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 6;
+      background: linear-gradient(90deg, rgba(255,63,209,0.35), rgba(39,229,255,0.35));
+      border-top: 1px solid rgba(255,255,255,0.2);
+      overflow: hidden; white-space: nowrap; font-family: 'Press Start 2P', monospace; font-size: 12px;
+      text-shadow: 0 0 6px rgba(255,255,255,0.65);
+    }
+    .marquee span { display: inline-block; padding: 10px 0; animation: scroll 20s linear infinite; }
+    @keyframes scroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+
+    /* Cursor sparkles */
+    .sparkle { position: fixed; width: 8px; height: 8px; pointer-events: none; border-radius: 50%; will-change: transform, opacity; }
+
+    /* Glitch effect for title */
+    .glitch { position: relative; display: inline-block; }
+    .glitch::before, .glitch::after {
+      content: attr(data-text); position: absolute; left: 0; top: 0; opacity: 0.75; clip-path: inset(0 0 0 0);
+    }
+    .glitch::before { color: var(--neon-pink); transform: translate(2px,0); animation: glitch1 2.5s infinite; }
+    .glitch::after  { color: var(--neon-blue); transform: translate(-2px,0); animation: glitch2 3s infinite; }
+    @keyframes glitch1 {
+      0%{clip-path: inset(0 0 0 0)} 10%{clip-path: inset(10% 0 80% 0)} 20%{clip-path: inset(80% 0 5% 0)} 30%{clip-path: inset(40% 0 40% 0)} 40%{clip-path: inset(0 0 0 0)} 100%{clip-path: inset(0 0 0 0)}
+    }
+    @keyframes glitch2 {
+      0%{clip-path: inset(0 0 0 0)} 15%{clip-path: inset(70% 0 10% 0)} 25%{clip-path: inset(5% 0 70% 0)} 35%{clip-path: inset(40% 0 40% 0)} 45%{clip-path: inset(0 0 0 0)} 100%{clip-path: inset(0 0 0 0)}
+    }
+
+    /* Hyper mode */
+    .hyper .frame { box-shadow: 0 0 120px rgba(255,255,255,0.8), 0 0 80px rgba(255,255,255,0.6) inset; }
+    .hyper .subtitle { animation-duration: 1.8s; }
+    .hyper .floor { animation-duration: 1.2s; }
+  </style>
+</head>
+<body>
+  <canvas id="stars"></canvas>
+  <canvas id="confetti"></canvas>
+  <div class="floor"></div>
+  <div class="frame"></div>
+
+  <div class="wrap">
+    <div class="badge">★ SYNTHWAVE SUPER SYSTEM v1.9 ★</div>
+
+    <h1 class="title glitch" data-text="Text me the word 'LANGAROO!'">
+      <span class="outline">Text me the word 'LANGAROO!'</span>
+      <span class="glow">Text me the word 'LANGAROO!'</span>
+      Text me the word 'LANGAROO!'
+    </h1>
+
+    <div class="subtitle">Seriously. TEXT it. Like it’s 1989 and you somehow have an SMS pager.</div>
+
+    <div class="chrome" data-reflect="LANGAROO!">LANGAROO!</div>
+
+    <div class="controls">
+      <button class="btn" id="btn-hyper">Engage Hyper Langaroo</button>
+      <button class="btn" id="btn-party">Party Like It’s 198X</button>
+      <button class="btn" id="btn-laserdots">More Lasers</button>
+    </div>
+  </div>
+
+  <div class="marquee"><span>⚡ PRO TIP: Type L A N G A R O O on your keyboard for a secret. ⚡ PRESS THE BUTTONS. THEY DO THINGS. ⚡ KEEP STARING AT THE GRID FOR 3 SECONDS FOR +10 COOL POINTS. ⚡</span></div>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <script>
+    // --- STARFIELD ---
+    const starCanvas = document.getElementById('stars');
+    const starCtx = starCanvas.getContext('2d');
+    let stars = [], W, H, z = 0.6;
+
+    function resize() {
+      W = starCanvas.width = window.innerWidth;
+      H = starCanvas.height = window.innerHeight;
+      confettiCanvas.width = W; confettiCanvas.height = H;
+      stars = new Array(Math.floor(W*H/2500)).fill(0).map(() => ({
+        x: (Math.random()*2-1), y: (Math.random()*2-1), z: Math.random()*1 + 0.2
+      }));
+    }
+
+    function starLoop(t){
+      starCtx.clearRect(0,0,W,H);
+      const cx=W/2, cy=H/2;
+      for (const s of stars){
+        s.z -= 0.002; if (s.z<0.1){ s.x=(Math.random()*2-1); s.y=(Math.random()*2-1); s.z = 1; }
+        const sx = cx + (s.x/s.z)*cx*0.9;
+        const sy = cy + (s.y/s.z)*cy*0.9;
+        const size = (1-s.z)*2.2;
+        starCtx.fillStyle = `hsl(${(1-s.z)*300},100%,70%)`;
+        starCtx.fillRect(sx, sy, size, size);
+      }
+      requestAnimationFrame(starLoop);
+    }
+    window.addEventListener('resize', resize);
+
+    // --- CURSOR SPARKLES ---
+    const colors = ['#ff3fd1','#27e5ff','#ffe54d','#6cff7d'];
+    function sparkle(x,y){
+      const e = document.createElement('div');
+      e.className = 'sparkle';
+      const c = colors[Math.floor(Math.random()*colors.length)];
+      e.style.background = `radial-gradient(circle, ${c}, transparent)`;
+      e.style.left = x+'px'; e.style.top = y+'px';
+      document.body.appendChild(e);
+      const dx = (Math.random()-0.5)*40; const dy = (Math.random()-0.8)*40; const rot = (Math.random()*360)|0;
+      e.animate([
+        { transform: `translate(0,0) rotate(0deg)`, opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity: 0 }
+      ], { duration: 600 + Math.random()*600, easing: 'cubic-bezier(.2,.8,.2,1)' })
+      .addEventListener('finish', () => e.remove());
+    }
+    window.addEventListener('pointermove', (e)=>sparkle(e.clientX,e.clientY));
+
+    // --- SECRET: Type L A N G A R O O ---
+    const secret = 'LANGAROO';
+    let buffer = '';
+    window.addEventListener('keydown', (e)=>{
+      buffer += (e.key||'').toUpperCase();
+      if (!secret.startsWith(buffer)) buffer = (e.key||'').toUpperCase() === 'L' ? 'L' : '';
+      if (buffer === secret){
+        activateHyper(true);
+        launchConfetti();
+        buffer='';
+      }
+    });
+
+    // --- Buttons ---
+    const btnHyper = document.getElementById('btn-hyper');
+    const btnParty = document.getElementById('btn-party');
+    const btnLasers = document.getElementById('btn-laserdots');
+
+    btnHyper.addEventListener('click', ()=>{ activateHyper(); launchConfetti(); });
+    btnParty.addEventListener('click', ()=>{
+      document.body.classList.toggle('hyper');
+      jitterTitle();
+    });
+    btnLasers.addEventListener('click', ()=>{
+      addLaserBurst(); addLaserBurst();
+    });
+
+    function activateHyper(forceAdd){
+      if (forceAdd) document.body.classList.add('hyper');
+      else document.body.classList.toggle('hyper');
+      jitterTitle();
+    }
+
+    function jitterTitle(){
+      const t = document.querySelector('.title');
+      t.animate([
+        { transform:'translate(0,0) skewX(0deg)' },
+        { transform:'translate(-4px,1px) skewX(-1deg)' },
+        { transform:'translate(2px,-2px) skewX(1deg)' },
+        { transform:'translate(0,0) skewX(0deg)' }
+      ], { duration: 420, iterations: 2 });
+    }
+
+    // --- Confetti ---
+    const confettiCanvas = document.getElementById('confetti');
+    const confettiCtx = confettiCanvas.getContext('2d');
+    let confetti = [];
+    function launchConfetti(){
+      const count = 200;
+      for (let i=0;i<count;i++){
+        confetti.push({
+          x: Math.random()*W,
+          y: -20 - Math.random()*H*0.2,
+          r: 4+Math.random()*6,
+          c: colors[Math.floor(Math.random()*colors.length)],
+          vx: (Math.random()-0.5)*2,
+          vy: 2+Math.random()*3,
+          a: Math.random()*360,
+          av: (Math.random()-0.5)*8
+        });
+      }
+    }
+    function confettiLoop(){
+      confettiCtx.clearRect(0,0,W,H);
+      for (const p of confetti){
+        p.x += p.vx; p.y += p.vy; p.a += p.av; p.vy += 0.05;
+        confettiCtx.save(); confettiCtx.translate(p.x,p.y); confettiCtx.rotate(p.a*Math.PI/180);
+        confettiCtx.fillStyle = p.c; confettiCtx.fillRect(-p.r/2,-p.r/2,p.r,p.r);
+        confettiCtx.restore();
+      }
+      confetti = confetti.filter(p=>p.y < H+40);
+      requestAnimationFrame(confettiLoop);
+    }
+
+    // --- Laser dots ---
+    function addLaserBurst(){
+      for (let i=0;i<60;i++){
+        sparkle(Math.random()*W, Math.random()*H*0.4 + H*0.3);
+      }
+    }
+
+    // Kickoff
+    resize();
+    requestAnimationFrame(starLoop);
+    requestAnimationFrame(confettiLoop);
+
+  </script>
+</body>
+</html>
